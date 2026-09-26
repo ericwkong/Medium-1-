@@ -1,0 +1,120 @@
+
+import pandas as pd
+import networkx as nx
+import matplotlib.pyplot as plt
+import re
+
+# STEP 1: Load the dataset
+df = pd.read_csv("social_media_viral_content_dataset.csv")
+
+# Keep only TikTok posts
+tiktok = df[df["platform"] == "TikTok"].copy()
+
+# STEP 2: Create the network
+G = nx.Graph()
+
+for i, row in tiktok.iterrows():
+
+    # Create a node for each TikTok post
+    post_node = f"post:{i}"
+
+    G.add_node(
+        post_node,
+        node_type="post",
+        topic=row["topic"],
+        viral=row["is_viral"]
+    )
+
+    # Find all hashtags used in this post
+    hashtags = re.findall(r"#\w+", str(row["hashtags"]).lower())
+
+    # Create hashtag nodes and connect them to the post
+    for tag in set(hashtags):
+
+        tag_node = f"tag:{tag}"
+
+        G.add_node(tag_node, node_type="hashtag")
+        G.add_edge(post_node, tag_node)
+
+
+# STEP 3: Check the network
+post_nodes = [
+    n for n in G.nodes
+    if G.nodes[n]["node_type"] == "post"
+]
+
+hashtag_nodes = [
+    n for n in G.nodes
+    if G.nodes[n]["node_type"] == "hashtag"
+]
+
+print("TikTok posts:", len(post_nodes))
+print("Hashtags:", len(hashtag_nodes))
+print("Edges:", G.number_of_edges())
+
+
+# STEP 4: Calculate the layout
+pos = nx.spring_layout(G, seed=42, k=0.35)
+
+
+# STEP 5: Draw the graph
+plt.figure(figsize=(16, 12))
+
+# Draw the connections first
+nx.draw_networkx_edges(
+    G,
+    pos,
+    alpha=0.12,
+    width=0.5
+)
+
+# Draw TikTok posts
+nx.draw_networkx_nodes(
+    G,
+    pos,
+    nodelist=post_nodes,
+    node_size=22,
+    node_color="lightblue",
+    alpha=0.7,
+    label="TikTok posts"
+)
+
+# Draw hashtags
+nx.draw_networkx_nodes(
+    G,
+    pos,
+    nodelist=hashtag_nodes,
+    node_size=1000,
+    node_color="orange",
+    edgecolors="black",
+    linewidths=0.8,
+    label="Hashtags"
+)
+
+# Label only the hashtags
+hashtag_labels = {
+    node: node.replace("tag:", "")
+    for node in hashtag_nodes
+}
+
+nx.draw_networkx_labels(
+    G,
+    pos,
+    labels=hashtag_labels,
+    font_size=11,
+    font_weight="bold"
+)
+
+# STEP 6: Format and save the figure
+plt.title("TikTok Post-Hashtag Network", fontsize=18)
+plt.legend()
+plt.axis("off")
+plt.tight_layout()
+
+plt.savefig(
+    "tiktok_network_figure.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.show()
